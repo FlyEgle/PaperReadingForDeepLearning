@@ -7,7 +7,7 @@ author: Facebook AI
 code(offical):  https://github.com/facebookresearch/TimeSformer
 ```
 ### 前言 
-Transformers(VIT)在图像识别领域大展拳脚，超越了很多基于Convolution的方法。视频识别领域也逐渐开始使用Transformers来做为backbone，本篇博客讲解一下FBAI团队的**TimeSformer**，这也是第一篇使用纯Transformer结构在视频识别上的文章。
+Transformers(VIT)在图像识别领域大展拳脚，超越了很多基于Convolution的方法。视频识别领域Transformers也开始'猪突猛进'，本篇博客讲解一下FBAI团队的**TimeSformer**，这也是第一篇使用纯Transformer结构在视频识别上的文章。
 
 ### 出发点
 1. 相比于Convolution，Transformer没有很强的归纳偏置，可以更好的适合大规模的数据集。
