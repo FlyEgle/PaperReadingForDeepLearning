@@ -1,5 +1,8 @@
 # Paper Reading Record 
 
+用于论文笔记，项目实验记录以及后续一些代码解析和学习等
+
+大部分文章都会在知乎更新，本repo只做备份记录
 
 ### Video Classification
 - [ViViT: A Video Vision Transformer](Video/ViViT.MD)
@@ -17,3 +20,5 @@
 ### OCR Detection | Recognition
 ### Object Detection 
 ### Object Segmentation | Instance Segmentation
+
+### Project Experiment
