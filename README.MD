@@ -3,7 +3,7 @@
 
 ### Video Classification
 - [ViViT: A Video Vision Transformer](Video/ViViT.MD)
-- [Is Space-Time Attention All You Need for Video Understanding?](Video/TimeSFormer.MD)
+- [TimeSFormer: Is Space-Time Attention All You Need for Video Understanding?](Video/TimeSFormer.MD)
 
 
 ### Image Classification
