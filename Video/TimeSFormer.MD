@@ -9,7 +9,7 @@ code(offical):  https://github.com/facebookresearch/TimeSformer
 ### 一、前言 
 Transformers(VIT)在图像识别领域大展拳脚，超越了很多基于Convolution的方法。视频识别领域的Transformers也开始'猪突猛进'，各种改进和魔改也是层出不穷，本篇博客讲解一下FBAI团队的**TimeSformer**，这也是第一篇使用纯Transformer结构在视频识别上的文章。
 
-### 二、出发点
+### 二、ideal剖析
 - **Video vs Image**
     1. Video是具有时序信息的，多个帧来表达行为或者动作，相比于Image直接理解pixel的内容而言，Video需要理解temporal的信息。
 - **Transformer vs CNNs**
@@ -21,9 +21,10 @@ Transformers(VIT)在图像识别领域大展拳脚，超越了很多基于Convol
     1. ```self-attention```的计算复杂程度跟token的数量直接相关，对于video来说，相比于图像会有更多的token(有N帧), 计算量会更大。
 
 
-### 三、怎么做
+### 三、算法设计
 Transformers有这么多的优点，所以既要保留纯粹的Transformer结构，同时要修改```self-attention```使其计算量降低并且可以构建Temporal特征。
 
+#### 构建VideoTransformer
 我们先梳理一下Video怎么输入到Transformer中: 对于Video来说，输入为$X \in \mathbb{R}^{H\times W \times 3 \times F}$, 表示为F帧采样的尺寸为$H\times W$的RGB图像。Transformer需要patch构建sequence进行输入，所以有$N = HW/P^2$，这里$P$表示的是patchsize大小，$N$表示的是每帧有多少个patch。展开后，可以表示为向量$X(p,t)\in \mathbb{R}^{3P^2}, p=1,...,N, t=1,...,F$。
 
 对输入做Embeeding处理，$z^{(0)}_{(p,t)} = EX(p, t) + e^{pos}_{(p, t)}$, 这里$E\in \mathbb{R}^{D\times 3P^2}$表示为一个可学习的矩阵，$e^{pos}_{(p,t)} \in \mathbb{R}^D$表示一个可学习空间位置编码。相比于Image的```cls-token```，Video的```cls-token```表示为 $z^{(0)}_{(0,0)}$。
@@ -57,9 +58,13 @@ z^{l}_{(p,t)} = MLP(LN({{z^{'}}^{(l)}_{(p, t)}})) + {z^{'}}^{(l)}_{(p, t)}
 $$
 
 最后就是分类层了，取```cls-token```用于最终的分类。
+$$
+y = MLP(LN(z^{l}_{(0,0)}))
+$$
 
+这样，我们就可以得到一个从输入到输出的VideoTransformer的完整表示。知道了怎么输入输出，接下来就要改进来提升性能了。
 
-#### Space-Time Self-Attention Models
+#### Self-Attention改进
 ![TransformerBlock](https://s3.bmp.ovh/imgs/2021/12/7f15dcb8596d4553.png)
 为了解决时序的问题，文中提出了几种构建方法:
 
