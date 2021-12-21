@@ -22,3 +22,9 @@
 ### Object Segmentation | Instance Segmentation
 
 ### Project Experiment
+- 分类性能调优
+    - [浅谈混合精度训练](Project/分类性能调优/浅谈混合精度训练imagenet.md)
+    - [提升分类性能(1)](Project/分类性能调优/如何让你的分类性能提升之LARS.MD)
+    - [提升分类性能(2)](Project/分类性能调优/提升分类性能之bag_of_tricks.MD)
+    - [提升分类性能(3)](Project/分类性能调优/提升分类性能之优化调参.MD)
+    
