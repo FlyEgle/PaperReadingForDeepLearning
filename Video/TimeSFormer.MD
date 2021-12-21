@@ -24,9 +24,40 @@ Transformers(VIT)在图像识别领域大展拳脚，超越了很多基于Convol
 ### 三、怎么做
 Transformers有这么多的优点，所以既要保留纯粹的Transformer结构，同时要修改```self-attention```使其计算量降低并且可以构建Temporal特征。
 
-对于Video来说，输入为$X \in R^{H\times W \times 3 \times F}$, 表示为F帧采样的尺寸为$H\times W$的RGB图像。Transformer需要patch构建sequence进行输入，所以有$N = HW/P^2$，这里$P$表示的是patchsize大小，$N$表示的是每帧有多少个patch。展开后，可以表示为向量$X(p,t)\in \mathbb{R}^{3P^2}, p=1,...,N, t=1,...,F$
+我们先梳理一下Video怎么输入到Transformer中: 对于Video来说，输入为$X \in \mathbb{R}^{H\times W \times 3 \times F}$, 表示为F帧采样的尺寸为$H\times W$的RGB图像。Transformer需要patch构建sequence进行输入，所以有$N = HW/P^2$，这里$P$表示的是patchsize大小，$N$表示的是每帧有多少个patch。展开后，可以表示为向量$X(p,t)\in \mathbb{R}^{3P^2}, p=1,...,N, t=1,...,F$。
 
-对输入做Embeeding处理，$z^{(0)}_{(p,t)} = EX(p, t) + e^{pos}_{(p, t)}$
+对输入做Embeeding处理，$z^{(0)}_{(p,t)} = EX(p, t) + e^{pos}_{(p, t)}$, 这里$E\in \mathbb{R}^{D\times 3P^2}$表示为一个可学习的矩阵，$e^{pos}_{(p,t)} \in \mathbb{R}^D$表示一个可学习空间位置编码。相比于Image的```cls-token```，Video的```cls-token```表示为 $z^{(0)}_{(0,0)}$。
+
+Transformer整体包含L层encoding blocks, 每个block的query,key,value表达如下:
+$$
+q^{(l,a)}_{(p,t)} = W^{(l, a)}_{Q}LN(z^{(l-1)}_{(p,t)}) \in \mathbb{R}^{D_h}\\
+k^{(l,a)}_{(p,t)} = W^{(l, a)}_{K}LN(z^{(l-1)}_{(p,t)}) \in \mathbb{R}^{D_h}\\
+v^{(l,a)}_{(p,t)} = W^{(l, a)}_{V}LN(z^{(l-1)}_{(p,t)}) \in \mathbb{R}^{D_h}
+$$
+这里，$a=1,...,A$表示attention heads数量，$D_{h}$表示的是每个head的维度。
+
+相比于Image的self-attention, Video的self-attention需要计算temporal维度，公式表达为:
+$$
+a^{(l, a)}_{(p, t)} = Softmax\left({\frac{q^{(l, a)}_{(p,t)}}{\sqrt{D_h}}}^{T}\dot \ \left[k^{(l, a)}_{(0,0)} \left \{k^{(l, a)}_{(p^{'},t^{'})}\right\}_{p^{'}=1,...,N \atop t^{'}=1,...,F} \right] \right)\\
+s^{(l, a)}_{(p,t)} = a^{(l,a)}_{(p,t), (0,0)}v^{(l,a)}_{(0,0)} + \sum^{N}_{p^{'}=1}\sum^{F}_{t^{'}=1}a^{(l, a)}_{(p,t),(p^{'},t^{'})}v^{(l,a)}_{(p^{'}, t^{'})}
+$$
+**Note**: 公式里把```cls-token```单独提出来了，这样方便表达空间和时序维度的attention。
+
+合并每个heads的attention后，进行一个线性投影，送入MLP中，同时进行一个残差连接和Image的Transformer没有区别，公式表达如下：
+$$
+{z^{'}}^{(l)}_{(p,t)} = W_{O}
+\left[                 %左括号
+  \begin{array}{ccc}   %该矩阵一共3列，每一列都居中放置
+    s^{(l,1)}_{p,t}\\  %第一行元素
+    \vdots\\
+    s^{(l,A)}_{p,t}\\  %第二行元素
+  \end{array}
+\right]           + z^{(l-1)}_{(p,t)}\\
+z^{l}_{(p,t)} = MLP(LN({{z^{'}}^{(l)}_{(p, t)}})) + {z^{'}}^{(l)}_{(p, t)}
+$$
+
+最后就是分类层了，取```cls-token```用于最终的分类。
+
 
 #### Space-Time Self-Attention Models
 ![TransformerBlock](https://s3.bmp.ovh/imgs/2021/12/7f15dcb8596d4553.png)
