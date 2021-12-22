@@ -9,7 +9,7 @@ code(offical):  https://github.com/facebookresearch/TimeSformer
 ### 一、前言 
 Transformers(VIT)在图像识别领域大展拳脚，超越了很多基于Convolution的方法。视频识别领域的Transformers也开始'猪突猛进'，各种改进和魔改也是层出不穷，本篇博客讲解一下FBAI团队的**TimeSformer**，这也是第一篇使用纯Transformer结构在视频识别上的文章。
 
-### 二、ideal剖析
+### 二、出发点
 - **Video vs Image**
     1. Video是具有时序信息的，多个帧来表达行为或者动作，相比于Image直接理解pixel的内容而言，Video需要理解temporal的信息。
 - **Transformer vs CNNs**
@@ -62,17 +62,48 @@ $$
 y = MLP(LN(z^{l}_{(0,0)}))
 $$
 
-这样，我们就可以得到一个从输入到输出的VideoTransformer的完整表示。知道了怎么输入输出，接下来就要改进来提升性能了。
+这样，我们就可以得到一个从输入到输出的VideoTransformer的完整表示。知道了怎么输入输出，接下来讨论怎么改进更好的获取temporal特征信息。
 
-#### Self-Attention改进
+#### Self-Attention范式 
+
+为了解决时序的问题，文中提出了几种构建范式，如下图所示:
 ![TransformerBlock](https://s3.bmp.ovh/imgs/2021/12/7f15dcb8596d4553.png)
-为了解决时序的问题，文中提出了几种构建方法:
-
 - **SpaceAttention(S)**
+    这种就是标准的Transformer结构了，不计算Temporal的信息，只计算空间信息。公式可以表达为:
+    $$
+    a^{(l, a)}_{(p, t)} = Softmax\left({\frac{q^{(l, a)}_{(p,t)}}{\sqrt{D_h}}}^{T}\dot \ \left[k^{(l, a)}_{(0,0)} \left \{k^{(l, a)}_{(p^{'},t)}\right\}_{p^{'}=1,...,N } \right] \right)
+    $$
 - **Joint Space-Time Attention(ST)**
+    这种就是把temporal和空间的token拉伸在一起，计算量会变得很大($O((n+1)^2)$ -> $O((n*t+1)^2)$)。公式表达为:
+    $$
+    a^{(l, a)}_{(p, t)} = Softmax\left({\frac{q^{(l, a)}_{(p,t)}}{\sqrt{D_h}}}^{T}\dot \ \left[k^{(l, a)}_{(0,0)} \left \{k^{(l, a)}_{(p^{'},t^{'})}\right\}_{p^{'}=1,...,N \atop t^{'}=1,...,F} \right] \right)\\
+    $$
 - **Divided Space-Time Attention(T+S)**
+    相比于前两种，这个变种的attention计算分成了两步，第一步计算Temporal-self-attention，第二步计算Spatial-self-attention，复杂度则会变为($O((n*t+1)^2)$ -> $O((n+t+2)^2)$),每一次计算都会有```cls-token```参与，所以需要+2。公式表达如下：
+    $$
+    {a^{(l, a)}_{(p, t)}}_{spatial} = Softmax\left({\frac{q^{(l, a)}_{(p,t)}}{\sqrt{D_h}}}^{T}\dot \ \left[k^{(l, a)}_{(0,0)} \left \{k^{(l, a)}_{(p^{'},t)}\right\}_{p^{'}=1,...,N } \right] \right)\\
+    {a^{(l, a)}_{(p, t)}}_{temporal} = Softmax\left({\frac{q^{(l, a)}_{(p,t)}}{\sqrt{D_h}}}^{T}\dot \ \left[k^{(l, a)}_{(0,0)} \left \{k^{(l, a)}_{(p,t^{'})}\right\}_{t^{'}=1,...,F } \right] \right)
+    $$
+    两步独立计算且意义不同，所以Q,K,V需要来自不同的weights，不能共享权重。简单的定义为:
+    $$
+    {W^{(l, a)}_{Q^{space}}, W^{(l, a)}_{K^{space}}, W^{(l, a)}_{V^{space}}}\\
+    {W^{(l, a)}_{Q^{time}}, W^{(l, a)}_{K^{time}}, W^{(l, a)}_{V^{time}}}
+    $$
+- **Sparse Local Global Attention (L+G)**
+    这个attention文章只做了简单的描述，没有给出相关代码实现，这里参考了[Generating Long Sequences with Sparse Transformers](https://arxiv.org/pdf/1904.10509.pdf)文章，做一个简单的解释。
+    **先引入几个概念和图示**
+    **Self-Attention**, 左边是self-attention矩阵，右边是对应的相乘关系，复杂度为$O(n^2)$。
+    ![transformer](https://s3.bmp.ovh/imgs/2021/12/20be0e9b9b168962.png)
+    **Atrous Self-Attention**，为了减少计算复杂度，引用空洞概念，类似于空洞卷积，只计算与之相关的k个元素计算，这样就会存在距离不满足k的倍数的注意力为0，相当于加了一个k的stride的滑窗，如下图中的白色位置。这样复杂度可以从$O(n^2)$降低到$O(n^2/k)$。
+    ![Atrous Self Attention](https://s3.bmp.ovh/imgs/2021/12/843b71d7a2b0316b.png)
+    **Local Self-Attention**, 标准self-attention是用来计算```Non-Local```的，那也可以引入局部关联来计算local的，很简单，约束每个元素与自己k个邻域元素有关即可，如下图，复杂度为$O((2k+1)*n)$, 也就是$O(kn)$, 计算复杂度直接从平方降低到了线性，也损失了标准self-attention的长距离相关性。
+    ![Local Self Attention](https://s3.bmp.ovh/imgs/2021/12/48556ddf05a8c38a.png)
+    **Sparse Self-Attention**, 所以有了OpenAI的Sparse self-attention，直接合并Local和Atrous，除了相对距离不超过k的，相对距离为k的倍数的注意力都为0，这样Attention就有了"局部紧密相关和远程稀疏相关"的特性。
+    ![Sparse Self Attention](https://s3.bmp.ovh/imgs/2021/12/6ad5e20ebf801466.png)
 
+    回到本文，local-attention只考虑$F\times H/2\times W/2$的patches，也就是每个patch只关注1/4图像区域近邻的patchs，其他的patchs忽略。global-attention则采用2的stride来在Temporal维度和HW维度上进行patches的滑窗计算。与Sparser self-attention不同点在于，Sparse Local Global Attention先计算local后再进行计算global。
 
+- **Axial Attention(T+W+H)**
 ![不同attention可视化](https://s3.bmp.ovh/imgs/2021/12/88b0254244902dd0.png)
 
 
