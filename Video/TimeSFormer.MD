@@ -1,4 +1,4 @@
-# Is Space-Time Attention All You Need for Video Understanding?
+# TimeSformer: Is Space-Time Attention All You Need for Video Understanding?
 
 ```text
 paper:  https://arxiv.org/abs/2102.05095
