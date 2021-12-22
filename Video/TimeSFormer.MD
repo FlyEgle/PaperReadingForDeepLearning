@@ -237,45 +237,57 @@ x = x + self.drop_path(self.mlp(self.norm2(x)))
 
 - #### Analysis of Self-Attention Schemes
     ![exper1](https://s3.bmp.ovh/imgs/2021/12/2954da3e9bebc973.png)
+    
     Attention实验结论很明显，K400和SSV2，Divided Space-Time效果是最好的, 比较有趣的是Space在K400的表现并不差，但是在SSV2上效果很差，说明SSV2数据集更加趋向于动作，K400更加趋向于内容。（**NOTE**: Joint Space-Time attention实际上使用了TimeEmbeeding的，实际参数量应该比Space多一点点，不过量级很少，所以这里没有标示。）
 
 - #### compare the computational cost
     ![exper2](https://s3.bmp.ovh/imgs/2021/12/f40a17be3b8d5925.png)
+    
     做了一下极限crop和frames的实验，可以看到Divided Space-time可以跑更大的分辨率且更多的帧，也就意味着可以刷更高的指标。
 
 - #### Comparison to 3D CNNs
     ![exper3](https://s3.bmp.ovh/imgs/2021/12/89addd3a6aff3674.png)
+    
     虽然TimeSformer的参数很大，但是推理开销更少，训练成本也更低，反之I3D，SlowFast这种3D CNNs需要更长的优化周期才能达到不错的性能。
 
 - #### The Importance of Pretraining
     ![exper4](https://s3.bmp.ovh/imgs/2021/12/704762b8b07ea3bf.png)
+    
     实验说明了一个问题，更NB的pretrain会带来更高的收益，```TimeSformer```表示的是```8x224x224```video片段输入，```TimeSformer-HR```表示的是```16x448x448```video片段输入，```TimeSformer-L```表示的是```96x224x224```video片段输入。
 - #### The Impact of Video-Data Scale
     ![exper5](https://s3.bmp.ovh/imgs/2021/12/0b65af18d8ee2090.png)
+    
     分开讨论，对于理解性的视频数据集，K400，TimeSfomer可以在少量数据集的情况下也超过I3D和SlowFast。对于时序性的数据，TimeSformer需要更多的数据集才能达到不错的效果。
 
 - #### The Importance of Positional Embeddings
     ![exper6](https://ae03.alicdn.com/kf/Hc62063aaa05548809f0ed44d3de30d39H.png)
+    
     空间和时序的pos embeeding很重要，尤其是SSV2数据集上表现很明显。
 
 -  #### Varying the Number of Tokens
     ![exper7](https://ae01.alicdn.com/kf/H9b595ae4278e4189b1b4286dc4cb213eA.png)
+    
     增加分辨率可以提升性能，增加视频采样帧数可以带来持续收益，最高可以达到96帧(GPU显存限制)，已经远超cnn base的8-32帧。
 
 - #### Comparison to the State-of-the-Art
     ![exper8](https://ae03.alicdn.com/kf/H3a76e6f9d2f74173acd0ac872c4e757cG.png)
     ![exper9](https://ae01.alicdn.com/kf/H567cbbb80f0140c9b870bc833870d062z.png)
+    
     K400, TimeSformer采用的是3spatial crops(left,center,right)就可以达到80.7%的SOTA。K600，TimeSformer达到了82.2%的SOTA。
+
 - #### The effect of using multiple temporal clips
     ![exper9](https://ae05.alicdn.com/kf/H0c207221bd8547369b05f55ccbf106f5y.png)
+    
     采用了{1,3,5,10}不同的clips数量，可以看到TimeSfomer-L的性能保持不变，TimeSfomer在3clips的时候性能保持稳定，X3D,SlowFast还会随着clips的增加(>=5)而提升性能。对于略短的视频片段来说，TimeSfomer可以用更少的推理开销达到很高的性能。
 
 - #### Something-Something-V2 & Diving-48
     ![exper10](https://ae02.alicdn.com/kf/H028a6f679dda4e5d86b347863b3b76f0B.png)
+    
     SSV2上的性能只比SlowFast高，甚至低于TSM，Diviing-48比SlowFast高了很多。
 
 - #### Long-Term Video Modeling
     ![exper11](https://ae05.alicdn.com/kf/Hd078e9e6368b48729e47a30a49f541fbS.png)
+    
     相比于SlowFast在长视频的表现，TimeSformer高出10个点左右，这个表里的数据是先用k400做pretrain后训练howto100得到的，使用imagenet21k做pretrain，最高可以达到62.1%，说明TimeSformer可以有效的训练长视频，不需要额外的pretrian数据。
 
 - #### Additional Ablations
@@ -293,10 +305,14 @@ x = x + self.drop_path(self.mlp(self.norm2(x)))
 
 - #### Visualizing Learned Space-Time Attention
     ![exper12](https://ae04.alicdn.com/kf/Hd747fe423d5b4411822cb12b19d4d2d2g.png)
+    
     TimeSformer可以学会关注视频中的空间和时序相关部分，以便进行时空理解。
+
 - #### Visualizing Learned Feature Embeddings.
     ![exper13](https://ae05.alicdn.com/kf/Hc12760268db04e40b48a3edc4002540af.png)
+    
     t-SNE显示，可以看到Divided Space-Time Attention的特征区分程度更强
+
 ### 六、结论
 - 提出了基于Transformer的video模型范式，设计了divide sapce-time attention。
 - 在K400,K600上取得了SOTA的效果。
