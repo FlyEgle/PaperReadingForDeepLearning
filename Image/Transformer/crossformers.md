@@ -1,8 +1,8 @@
 # 浅谈CrossFormer
 
 > 论文名称: CROSSFORMER: A VERSATILE VISION TRANSFORMER BASED ON CROSS-SCALE ATTENTION
-> 论文链接: https://arxiv.org/pdf/2108.00154.pdf
-> 论文代码：https://github.com/cheerss/CrossFormer
+    论文链接: https://arxiv.org/pdf/2108.00154.pdf
+    论文代码：https://github.com/cheerss/CrossFormer
 
 # 1. 出发点
 Transformers模型在处理视觉任务方面已经取得了很大的进展。然而，现有的vision transformers仍然不具备一种对视觉输入很重要的能力：**在不同尺度的特征之间建立注意力**。

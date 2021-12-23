@@ -1,7 +1,7 @@
 # 浅谈CMT以及复现
 
 > 论文链接: https://arxiv.org/abs/2107.06263
-> 论文代码(个人实现版本): https://github.com/FlyEgle/CMT-pytorch
+    论文代码(个人实现版本): https://github.com/FlyEgle/CMT-pytorch
 
 ### 写在前面
 本篇博客讲解CMT模型并给出从0-1复现的过程以及实验结果，由于论文的细节并没有给出来，所以最后的复现和paper的精度有一点差异，等作者release代码后，我会详细的校对我自己的code，找找原因。
