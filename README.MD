@@ -4,6 +4,9 @@
 
 大部分文章都会在知乎更新，本repo只做备份记录
 
+部分文章已经转换PDF,方便阅读，存放在pdf文件夹中
+
+
 ### Video Classification
 - [ViViT: A Video Vision Transformer](Video/ViViT.MD)
 - [TimeSFormer: Is Space-Time Attention All You Need for Video Understanding?](Video/TimeSFormer.MD)
