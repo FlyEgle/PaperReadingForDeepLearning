@@ -1,11 +1,11 @@
 # TimeSformer: Is Space-Time Attention All You Need for Video Understanding?
 
-```text
-paper:  https://arxiv.org/abs/2102.05095
-accept: ICML2021
-author: Facebook AI
-code(offical):  https://github.com/facebookresearch/TimeSformer
-```
+>
+    paper:  https://arxiv.org/abs/2102.05095
+    accept: ICML2021
+    author: Facebook AI
+    code(offical):  https://github.com/facebookresearch/TimeSformer
+
 ### 一、前言 
 Transformers(VIT)在图像识别领域大展拳脚，超越了很多基于Convolution的方法。视频识别领域的Transformers也开始'猪突猛进'，各种改进和魔改也是层出不穷，本篇博客讲解一下FBAI团队的**TimeSformer**，这也是第一篇使用纯Transformer结构在视频识别上的文章。
 
