@@ -6,3 +6,7 @@
     author: Google Research
     code(Unoffical):  https://github.com/rishikksh20/ViViT-pytorch
 
+### 一、前言
+
+### 二、出发点
+### 三、算法设计
