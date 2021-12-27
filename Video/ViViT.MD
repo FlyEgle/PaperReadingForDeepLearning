@@ -34,5 +34,6 @@ y^{l} = \textup{MSA}(\textup{LN}(\textup{z}^{l})) + \textup{z}^{l}\\
 $$
 MLP由两个线性层以及GELU构成，整个推理过程中，token的维度$d$保持不变。最后，用一个线性层来对encoded的$z_{cls}^{l} \in \mathbb{R}^{d}$完成最终的分类，当然也可以用除了cls-token以外的所有tokens的的全局池化来进行分类。
 ![ViT](https://ae05.alicdn.com/kf/Hcc300c2f524343d49917925c8913a527c.png)
+<center style="font-size:14px;color:#C0C0C0;">图1.整体结构</center> 
 
 
