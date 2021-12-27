@@ -27,12 +27,12 @@ Google的这篇paper和FBAI的很类似，都是给出几个VideoTransformer的�
 $$
 \textup{z} = \left [z_{cls}, \textup{E}x_{1}, \textup{E}x_{2},...,  \textup{E}{x_{N}}  \right] + \textup{p}
 $$
-这里的$\textup{E}$是2d卷积。如下图最左遍所示，添加一个可学习的token,$z_{cls}$,用于表达最后分类之前的特征。这里，$\textup{p} \in \mathbb{R}^{N\times d}$表示为位置编码，加上输入token，用来保留位置信息。接下来，tokens经过$L$层的Transformer编码层。每层$l$都包含**Mutil-Headed Self-Attention(MSA)**和**LayerNorm(LN)** 以及一个**MLP**结构，表示如下:
+这里的$\textup{E}$是2d卷积。如下图最左边结构所示，添加一个可学习的token,$z_{cls}$,用于表达最后分类之前的特征。这里，$\textup{p} \in \mathbb{R}^{N\times d}$表示为位置编码，加上输入token，用来保留位置信息。接下来，tokens经过$L$层的Transformer编码层。每层$l$都包含**Mutil-Headed Self-Attention(MSA)**和**LayerNorm(LN)** 以及一个**MLP**结构，表示如下:
 $$
 y^{l} = \textup{MSA}(\textup{LN}(\textup{z}^{l})) + \textup{z}^{l}\\
 \textup{z}^{l+1}  =  \textup{MLP}(\textup{LN}(\textup{y}^{l})) + y^{l}
 $$
 MLP由两个线性层以及GELU构成，整个推理过程中，token的维度$d$保持不变。最后，用一个线性层来对encoded的$z_{cls}^{l} \in \mathbb{R}^{d}$完成最终的分类，当然也可以用除了cls-token以外的所有tokens的的全局池化来进行分类。
-
+![ViT](https://ae05.alicdn.com/kf/Hcc300c2f524343d49917925c8913a527c.png)
 
 
