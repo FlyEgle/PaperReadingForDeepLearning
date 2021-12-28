@@ -66,11 +66,11 @@ MLP由两个线性层以及GELU构成，整个推理过程中，token的维度$d
 - **Model 2: Factorised encoder**
     ![model2](https://ae01.alicdn.com/kf/H0189928d58f443d6aacd15ef577fcac8k.png)
     <center style="font-size:14px;color:#0C00C0;">图4. 分离encoder</center> 
-    如上图4所示，这个模型结构包含了两个分离的transformer编码结构。
+    如上图4所示，这个模型结构包含了两个分离的transformer编码结构。首先是spatial encoder，只计算同一帧下面的spatial-token，经过层 
 - **Model 3: Factorised self-attention**
     ![model3](https://ae03.alicdn.com/kf/Habaf35645bd14097b28b7002277af7b9c.png)
 - **Model 4: Factorised dot-product attention**
-
+    
 
 
 
