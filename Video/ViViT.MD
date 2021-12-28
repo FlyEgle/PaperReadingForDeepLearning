@@ -4,7 +4,9 @@
     paper:  https://arxiv.org/abs/2103.15691
     accept: ICCV2021
     author: Google Research
-    code(Unoffical):  https://github.com/rishikksh20/ViViT-pytorch
+    code(Unoffical):  
+        model2：https://github.com/rishikksh20/ViViT-pytorch
+        model4: https://github.com/noureldien/vivit_pytorch
 ### 一、前言
 Google的这篇paper和FBAI的很类似，都是给出几个VideoTransformer的范式，解决怎么把Transformer结构从Image迁移到Video上。相比于TimeSformer，google的这篇paper不单单给出结构范式，同时也给出了迁移imagenet pretrain的实验分析，并给出了怎么训练小数据集上的策略。实验表明，相比于TimeSformer，ViViT更SOTA。(ps:这两篇paper第一版本相差了1个半月的时间，很有可能是同期工作，也有可能Google填了一点FB的坑)
 
@@ -90,10 +92,242 @@ MLP由两个线性层以及GELU构成，整个推理过程中，token的维度$d
     $$
     \textup{Attention}(\textup{Q},\textup{K}, \textup{V}) = \textup{Softmax}\left(\frac{\textup{Q}\textup{K}^{T}}{\sqrt{d_{k}}}\right)\textup{V}
     $$
-    其中，$\textup{Q}=\textup{X}\textup{W}_{q}$,$\textup{K}=\textup{X}\textup{W}_{k}$,$\textup{V}=\textup{X}\textup{W}_{v}, \textup{X},\textup{Q},\textup{K},\textup{V} \in \mathbb{R}^{N\times d}$，这里维度表示为$N=n_{t}\cdot n_{w}\cdot n_{h}$
+    其中，$\textup{Q}=\textup{X}\textup{W}_{q}$,$\textup{K}=\textup{X}\textup{W}_{k}$,$\textup{V}=\textup{X}\textup{W}_{v}, \textup{X},\textup{Q},\textup{K},\textup{V} \in \mathbb{R}^{N\times d}$，这里维度表示为$N=n_{t}\cdot n_{w}\cdot n_{h}$。
+    此结构的核心idea是构建空间$\textup{K}_{s}, \textup{V}_{s} \in \mathbb{R}^{n_{h}\cdot n_{w} \times d}$和时序$\textup{K}_{t}, \textup{V}_{t} \in \mathbb{R}^{n_{t} \times d}$,表示各自维度的key和value信息。用一半的heads来计算空间特征，$\textup{Y}_{s}=\textup{Attention}(\textup{Q},\textup{K}_{s},\textup{V}_{s})$，余下的heads用于计算时序特征$\textup{Y}_{t} = \textup{Attention}(\textup{Q},\textup{K}_{t},\textup{V}_{t})$最后把时序和空间特征concateate起来，并经过线性映射用于特征交互,$\textup{Y}=Concat(\textup{Y}_{s}, \textup{Y}_{t})\textup{W}_{o}$。
+
+#### Initialisation by leveraging pretrained models
+广为人知的是，Transformer只有在大规模的数据集上表现很好，因为相比于CNN，有更少的归纳偏置。虽然目前很多视频数据集量足够大，但是标注级别相比于图像来说还是略少，所以想要从零开始训练一个高精度的大模型还是具有挑战性的。为了规避问题，需要使用image的pretrain来做video的初始化，但是video模型和image模型还是存在部分差异的，不能完全迁移权重，本文提出了几个有效的策略来解决这个问题。
+- **Positional embeddings**
+由于图像模型的```positonal-embeeding```维度为$\mathbb{R}^{n_{w}\cdot n_{h} \times d}$, 视频具有一个时序的维度$n_{t}$，所以为了维度匹配，直接按t维度进行repeat为$\mathbb{R}^{n_{w}\cdot n_{h}\cdot n_{t}\times d}$。这样初始化阶段，每帧都具备相同的编码信息。
+- **Embedding weights, E**
+对于```tubelet embedding```来说，用的是3d卷积，图像经常使用的是2d卷积，那么就需要考虑如何把2d迁移到3d上去。第一种方法是"inflate"，简单来说，按t维度上进行复制，然后再求个平均，表达式如下：
+$$
+\textup{E} = \frac{1}{t}[\textup{E}_{\textup{image}},...,\textup{E}_{\textup{image}},...,\textup{E}_{\textup{image}}]
+$$
+另一种方法是"central frame initialisation", 除了中间帧初始化以外，其他的帧都设置为0，表达如下:
+$$
+\textup{E} = [\textup{0},...,textup{E}_{\textup{image}},...,\textup{0}]
+$$
+
+- **Transformer weights for Model 3**
+模型3的结构设计，是独立的空间attention和时序attention，空间attention可以直接使用图像模型的pretrain，时序attention初始化为0。
+### 四、代码分析
+- **Model-1**
+    model1就是标准的VIT结构，除了patchembeeding以外没有任何的改变，直接看vit代码就可以了。
+- **Model-2**
+    有spatial-attention和temporal-attention，所以需要注意cls-token的初始化和变化情况，代码如下:
+    ```python
+    self.to_patch_embedding = nn.Sequential(
+            Rearrange('b t c (h p1) (w p2) -> b t (h w) (p1 p2 c)', p1 = patch_size, p2 = patch_size),
+            nn.Linear(patch_dim, dim),
+        )# 这部分可以用conv2d直接替换掉
+    self.pos_embedding = nn.Parameter(torch.randn(1, num_frames, num_patches + 1, dim))
+    self.space_token = nn.Parameter(torch.randn(1, 1, dim))
+    self.space_transformer = Transformer(dim, depth, heads, dim_head, dim*scale_dim, dropout)
+
+    self.temporal_token = nn.Parameter(torch.randn(1, 1, dim))
+    self.temporal_transformer = Transformer(dim, depth, heads, dim_head, dim*scale_dim, dropout)
+    ```
+    上述代码两个token，```space_token```用来表示spatial的clstoken，```temporal_token```用来表示temporal的clstoken。其实，cls-token的目的是最终的分类，model2的模型最后的token输出是来自于temporal-transformer的，所以space的cls-token其实是不需要的，直接用avgpool来获取spatial-transformer的结果就可以了，下面看一下forward部分。
+    ```python
+    x = self.to_patch_embedding(x)
+    b, t, n, _ = x.shape
+
+    cls_space_tokens = repeat(self.space_token, '() n d -> b t n d', b = b, t=t)
+    x = torch.cat((cls_space_tokens, x), dim=2)
+    x += self.pos_embedding[:, :, :(n + 1)]
+    x = self.dropout(x)
+
+    x = rearrange(x, 'b t n d -> (b t) n d')
+    x = self.space_transformer(x)
+    x = rearrange(x[:, 0], '(b t) ... -> b t ...', b=b)
+
+    cls_temporal_tokens = repeat(self.temporal_token, '() n d -> b n d', b=b)
+    x = torch.cat((cls_temporal_tokens, x), dim=1)
+
+    x = self.temporal_transformer(x)
+
+    x = x.mean(dim = 1) if self.pool == 'mean' else x[:, 0]
+    ```
+    这里用了```einops```库来实现，简单易懂，做了三个操作，第一个就是获取```patch_embeeding```, 先进行spatial-attention的计算，把space_token按的维度```patch_embeeding```进行扩展后concat，reshape为((bt),(n+1),d)后送入space_transformer。输出和输入维度一致，需要计算temporal的attention，重排并concat上cls-token，shape为((b,n),(t+1),d)，送入temporal-attention后，用cls-token进行分类计算，over。
+- **Model-3**
+    model3的实现和TimeSformer的实现是一样的，去掉cls-token即可，可以参考[TimeSformer](Video/TimeSFormer.md)的文章。
+- **Model-4**
+    model4的实现与model1不同之处只有，transformer是有两个不同维度的attention来进行计算的，代码如下：
+    ```python
+    class Attention(nn.Module):
+    def __init__(self, dim, heads=8, dim_head=64, dropout=0.0, num_patches_space=None, num_patches_time=None, attn_type=None):
+        super().__init__()
+
+        assert attn_type in ['space', 'time'], 'Attention type should be one of the following: space, time.'
+
+        self.attn_type = attn_type
+        self.num_patches_space = num_patches_space
+        self.num_patches_time = num_patches_time
+
+        inner_dim = dim_head * heads
+        self.scale = dim_head ** -0.5
+        self.heads = heads
+
+        self.attend = nn.Softmax(dim=-1)
+        self.to_qkv = nn.Linear(dim, inner_dim * 3, bias=False)
+
+    def forward(self, x):
+
+        t = self.num_patches_time
+        n = self.num_patches_space
+
+        # reshape to reveal dimensions of space and time
+        x = rearrange(x, 'b (t n) d -> b t n d', t=t, n=n)  # （b, t, n, d）
+
+        if self.attn_type == 'space':
+            out = self.forward_space(x) # (b, tn, d)
+        elif self.attn_type == 'time':
+            out = self.forward_time(x) # (b, tn, d)
+        else:
+            raise Exception('Unknown attention type: %s' % (self.attn_type))
+
+        return out
+
+    def forward_space(self, x):
+        """
+        x: (b, t, n, d)
+        """
+
+        t = self.num_patches_time
+        n = self.num_patches_space
+
+        # hide time dimension into batch dimension
+        x = rearrange(x, 'b t n d -> (b t) n d')  # (bt, n, d)
+
+        # apply self-attention
+        out = self.forward_attention(x)  # (bt, n, d)
+
+        # recover time dimension and merge it into space
+        out = rearrange(out, '(b t) n d -> b (t n) d', t=t, n=n)  # (b, tn, d)
+
+        return out
+
+    def forward_time(self, x):
+        """
+        x: (b, t, n, d)
+        """
+
+        t = self.num_patches_time
+        n = self.num_patches_space
+
+        # hide time dimension into batch dimension
+        x = x.permute(0, 2, 1, 3)  # (b, n, t, d)
+        x = rearrange(x, 'b n t d -> (b n) t d')  # (bn, t, d)
+
+        # apply self-attention
+        out = self.forward_attention(x)  # (bn, t, d)
+
+        # recover time dimension and merge it into space
+        out = rearrange(out, '(b n) t d -> b (t n) d', t=t, n=n)  # (b, tn, d)
+
+        return out
+
+    def forward_attention(self, x):
+        h = self.heads
+        qkv = self.to_qkv(x).chunk(3, dim=-1)
+        q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h=h), qkv)
+
+        dots = einsum('b h i d, b h j d -> b h i j', q, k) * self.scale
+        attn = self.attend(dots)
+
+        out = einsum('b h i j, b h j d -> b h i d', attn, v)
+        out = rearrange(out, 'b h n d -> b n (h d)')
+
+        return out
+    ```
+    ```forward_attention```和```forward_time```分别用于计算((b, t), n, d)和((b, n), t, d)维度的token的attention。
+    ```python
+    class Transformer(nn.Module):
+    def __init__(self, dim, heads, dim_head, mlp_dim, dropout, num_patches_space, num_patches_time):
+        super().__init__()
+
+        self.num_patches_space = num_patches_space
+        self.num_patches_time = num_patches_time
+        heads_half = int(heads / 2.0)
+
+        assert dim % 2 == 0
+
+        self.attention_space = PreNorm(dim, Attention(dim, heads=heads_half, dim_head=dim_head, dropout=dropout, num_patches_space=num_patches_space, num_patches_time=num_patches_time, attn_type='space'))
+        self.attention_time = PreNorm(dim, Attention(dim, heads=heads_half, dim_head=dim_head, dropout=dropout, num_patches_space=num_patches_space, num_patches_time=num_patches_time, attn_type='time'))
+
+        inner_dim = dim_head * heads_half * 2
+        self.linear = nn.Sequential(nn.Linear(inner_dim, dim), nn.Dropout(dropout))
+        self.mlp = PreNorm(dim, FeedForward(dim, mlp_dim, dim, dropout=dropout))
+
+    def forward(self, x):
+
+        # self-attention
+        xs = self.attention_space(x)
+        xt = self.attention_time(x)
+        out_att = torch.cat([xs, xt], dim=2)
+
+        # linear after self-attention
+        out_att = self.linear(out_att)
+
+        # residual connection for self-attention
+        out_att += x
+
+        # mlp after attention
+        out_mlp = self.mlp(out_att)
+
+        # residual for mlp
+        out_mlp += out_att
+
+        return out_mlp
+    ```
+    得到的不同维度的attention进行concat，做一个线性映射后接MLP，其余和model1保持一致。这份代码实现里面没有用到cls-token，直接求了mean。
+
+### 五、实验结果
+#### Input encoding
+![embeeding](https://ae03.alicdn.com/kf/H8ea9b00fc5a443d8846b433d145d70ecG.png)
+为了比较embeeding方法，这里模型采用的是model1的结构，输入为32帧的video, 采样8帧，使用tubelet embeeding的话，设置$t=4$, 这样token的数量可以保持一致。实验结果表明，使用tubelet embeeding并且使用central frame的初始化的方法可以达到最好的精度，后续所有实验均采用此方法。
+#### Model variants
+![model](https://ae05.alicdn.com/kf/Haaa8c1291e1a4b16b161d2a2cfec8293d.png)
+比较模型性能，这里Model2的temporal-transformer设置4层。model1的性能最好，但是FLOPs最大，运行时间最长。Model4没有额外的参数量，计算量比model1少很多，但是性能不高。Model3相比与其他的变体，需要更高的计算量和参数量。Model2表现最佳，精度尚可，计算量和运行时比较低。最后一行是单独做的实验，去掉了Model2的temporal transformer，直接在帧上做了pooling，EK上的精度下降很多，对于时序强的数据集需要用temporal transformer来做时序信息交互。
+![L](https://ae04.alicdn.com/kf/H06313488e6c0470889e1f080c2fb54fbO.png)
+可以看到Model2取temporal-transorformer层数为4的时候可以达到最优效果和最佳参数量。
+
+#### Model regularisation
+![model](https://ae02.alicdn.com/kf/H7050b864324d4c5bbf8d37f274f5b033p.png)
+做了一些正则化实验，可以看到使用部分CNN的正则化训练手段也可以有效的提升ViViT在小规模数据集上的性能。在ssv2数据集上也同样提升了近5%的性能。对于Kinetics和Moments in Time数据集，除了第一行以外的正则都没有使用就已经SOTA了。
+#### Varying the backbone
+![backbone](https://ae04.alicdn.com/kf/Hcadd0ad404ab4f9da8de3783922aaa6aN.png)
+使用更大的模型会有更高的精度，不过计算量的增长速度远超精度，收益不高。
+#### Varying the number of tokens
+![tokens](https://ae01.alicdn.com/kf/H904e29cec7824e40bd664a65ca360e44u.png)
+使用更小的tubelet size可以提升所有模型的精度，当然计算量也是跟着增长，Model1的影响最大。
+![size](https://ae05.alicdn.com/kf/H8fa1e74a359c4b548204a1207d34e951M.png)
+图像尺寸从224提升到了320，精度和计算量也都随着增长，不过仅使用224的尺寸就可以SOTA了。
+
+#### Varying the number of input frames
+![number](https://ae05.alicdn.com/kf/Hcdcdffbd7d174ec3bba98c32011ea38dB.png)
+对于K400这种短视频来说，总计250帧，使用stride2采样128帧足够遍历一整个视频了，不管用多少个view的片段都不会影响精度。其他的clips只要views满足遍历一整个视频的时候，精度都不会在提升。
+
+#### Comparison to state-of-the-art
+![sota](https://ae02.alicdn.com/kf/H6ef35e168f624e5a890f485964d9d2c3E.png)
+- **Kinetics**
+    K400上，使用JFT做pretrain相比于imagenet21k高了3.2%，取得了84.9%的高精度，pretrain对于模型的影响还是至关重要的。当然只使用imagenet21k的ViViT-L就已经超过了TimeSformer-L的效果了。推理使用的是1个clips，3个crop(left,center,right)。
+    K600上，ViViT同样SOTA, JFT pretrian高出了imagenet21k pretrian 2.9%，取得了85.8%的高精度。
+- **Moments in Time**
+- **Epic Kitchens 100**
+- **Something-Something v2 (SSv2)**
+
+#### Training config
+![配置详情](https://ae04.alicdn.com/kf/H40625b63bc6e4c4aaf6694b102e12ee5R.png)
+
+### 六、结论
+- 提出了基于Transformer的video模型范式，设计了divide sapce-time attention。
+- 在K400,K600上取得了SOTA的效果。
+- 相比于3D CNNs，训练和推理的成本低。
+- 可以应用于超过一分钟的视频片段，具备长视频建模能力。
 
 
-
-
-
-
+### 参考
+- https://blog.csdn.net/m0_37531129/article/details/108125010
+- https://arxiv.org/pdf/1904.10509.pdf
