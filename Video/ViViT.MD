@@ -7,6 +7,8 @@
     code(Unoffical):  
         model2：https://github.com/rishikksh20/ViViT-pytorch
         model4: https://github.com/noureldien/vivit_pytorch
+    code(Offical): https://github.com/google-research/scenic/tree/main/scenic/projects/vivit
+
 ### 一、前言
 Google的这篇paper和FBAI的很类似，都是给出几个VideoTransformer的范式，解决怎么把Transformer结构从Image迁移到Video上。相比于TimeSformer，google的这篇paper不单单给出结构范式，同时也给出了迁移imagenet pretrain的实验分析，并给出了怎么训练小数据集上的策略。实验表明，相比于TimeSformer，ViViT更SOTA。(ps:这两篇paper第一版本相差了1个半月的时间，很有可能是同期工作，也有可能Google填了一点FB的坑)
 
@@ -151,7 +153,7 @@ $$
     ```
     这里用了```einops```库来实现，简单易懂，做了三个操作，第一个就是获取```patch_embeeding```, 先进行spatial-attention的计算，把space_token按的维度```patch_embeeding```进行扩展后concat，reshape为((bt),(n+1),d)后送入space_transformer。输出和输入维度一致，需要计算temporal的attention，重排并concat上cls-token，shape为((b,n),(t+1),d)，送入temporal-attention后，用cls-token进行分类计算，over。
 - **Model-3**
-    model3的实现和TimeSformer的实现是一样的，去掉cls-token即可，可以参考[TimeSformer](Video/TimeSFormer.md)的文章。
+    model3的实现和TimeSformer的实现是一样的，去掉cls-token即可，可以参考[TimeSformer](Video/../TimeSFormer.MD)的文章。
 - **Model-4**
     model4的实现与model1不同之处只有，transformer是有两个不同维度的attention来进行计算的，代码如下：
     ```python
