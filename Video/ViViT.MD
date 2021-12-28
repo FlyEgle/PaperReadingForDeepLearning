@@ -90,7 +90,10 @@ MLP由两个线性层以及GELU构成，整个推理过程中，token的维度$d
     这里有个很有意思的点，TimeSformer的结论是T-S的顺序会有提升，S-T的顺序会有下降，但是ViViT的结论是T-S和S-T指标没区别。TimeSformer在实现的时候考虑了cls-token的信息变化，ViViT直接弃用了，以免信息混淆。
 
 - **Model 4: Factorised dot-product attention**
-    如图1的最右边结构所示，模型采用分离的MSA，使用不同的heads来分别计算spatial和temporal。我们定义attention公式为:
+    ![model4](https://ae05.alicdn.com/kf/H6a9fa66e6a684c31aa0f12772e1fffa3V.png)
+    <center style="font-size:14px;color:#0C00C0;">图7. Factorised dot-product attention</center> 
+
+    如图所示，模型采用分离的MSA，使用不同的heads来分别计算spatial和temporal。我们定义attention公式为:
     $$
     \textup{Attention}(\textup{Q},\textup{K}, \textup{V}) = \textup{Softmax}\left(\frac{\textup{Q}\textup{K}^{T}}{\sqrt{d_{k}}}\right)\textup{V}
     $$
@@ -155,7 +158,7 @@ $$
 - **Model-3**
     model3的实现和TimeSformer的实现是一样的，去掉cls-token即可，可以参考[TimeSformer](Video/../TimeSFormer.MD)的文章。
 - **Model-4**
-    model4的实现与model1不同之处只有，transformer是有两个不同维度的attention来进行计算的，代码如下：
+    model4的实现与model1不同之处在于，transformer是有两个不同维度的attention来进行计算的，代码如下：
     ```python
     class Attention(nn.Module):
     def __init__(self, dim, heads=8, dim_head=64, dropout=0.0, num_patches_space=None, num_patches_time=None, attn_type=None):
@@ -288,48 +291,64 @@ $$
 ### 五、实验结果
 #### Input encoding
 ![embeeding](https://ae03.alicdn.com/kf/H8ea9b00fc5a443d8846b433d145d70ecG.png)
+
 为了比较embeeding方法，这里模型采用的是model1的结构，输入为32帧的video, 采样8帧，使用tubelet embeeding的话，设置$t=4$, 这样token的数量可以保持一致。实验结果表明，使用tubelet embeeding并且使用central frame的初始化的方法可以达到最好的精度，后续所有实验均采用此方法。
+
 #### Model variants
 ![model](https://ae05.alicdn.com/kf/Haaa8c1291e1a4b16b161d2a2cfec8293d.png)
+
 比较模型性能，这里Model2的temporal-transformer设置4层。model1的性能最好，但是FLOPs最大，运行时间最长。Model4没有额外的参数量，计算量比model1少很多，但是性能不高。Model3相比与其他的变体，需要更高的计算量和参数量。Model2表现最佳，精度尚可，计算量和运行时比较低。最后一行是单独做的实验，去掉了Model2的temporal transformer，直接在帧上做了pooling，EK上的精度下降很多，对于时序强的数据集需要用temporal transformer来做时序信息交互。
+
 ![L](https://ae04.alicdn.com/kf/H06313488e6c0470889e1f080c2fb54fbO.png)
+
 可以看到Model2取temporal-transorformer层数为4的时候可以达到最优效果和最佳参数量。
 
 #### Model regularisation
 ![model](https://ae02.alicdn.com/kf/H7050b864324d4c5bbf8d37f274f5b033p.png)
+
 做了一些正则化实验，可以看到使用部分CNN的正则化训练手段也可以有效的提升ViViT在小规模数据集上的性能。在ssv2数据集上也同样提升了近5%的性能。对于Kinetics和Moments in Time数据集，除了第一行以外的正则都没有使用就已经SOTA了。
+
 #### Varying the backbone
 ![backbone](https://ae04.alicdn.com/kf/Hcadd0ad404ab4f9da8de3783922aaa6aN.png)
+
 使用更大的模型会有更高的精度，不过计算量的增长速度远超精度，收益不高。
+
 #### Varying the number of tokens
 ![tokens](https://ae01.alicdn.com/kf/H904e29cec7824e40bd664a65ca360e44u.png)
+
 使用更小的tubelet size可以提升所有模型的精度，当然计算量也是跟着增长，Model1的影响最大。
+
 ![size](https://ae05.alicdn.com/kf/H8fa1e74a359c4b548204a1207d34e951M.png)
+
 图像尺寸从224提升到了320，精度和计算量也都随着增长，不过仅使用224的尺寸就可以SOTA了。
 
 #### Varying the number of input frames
 ![number](https://ae05.alicdn.com/kf/Hcdcdffbd7d174ec3bba98c32011ea38dB.png)
+
 对于K400这种短视频来说，总计250帧，使用stride2采样128帧足够遍历一整个视频了，不管用多少个view的片段都不会影响精度。其他的clips只要views满足遍历一整个视频的时候，精度都不会在提升。
 
 #### Comparison to state-of-the-art
 ![sota](https://ae02.alicdn.com/kf/H6ef35e168f624e5a890f485964d9d2c3E.png)
+
 - **Kinetics**
     K400上，使用JFT做pretrain相比于imagenet21k高了3.2%，取得了84.9%的高精度，pretrain对于模型的影响还是至关重要的。当然只使用imagenet21k的ViViT-L就已经超过了TimeSformer-L的效果了。推理使用的是1个clips，3个crop(left,center,right)。
     K600上，ViViT同样SOTA, JFT pretrian高出了imagenet21k pretrian 2.9%，取得了85.8%的高精度。
 - **Moments in Time**
+    由于数据集庞杂，标注不精细，整体准确率都偏低，ViViT取得了38.5%的SOTA。
 - **Epic Kitchens 100**
+    除了"verb"以外均取得了大幅度的领先SOTA，"verb"其他模型更高的结果是因为引入了光流(PS:我查了一下TSM的dataset貌似没有EK的对比结果)。
 - **Something-Something v2 (SSv2)**
+    ssv2上的结果虽然SOTA，但是没有很大幅度的领先，不过超过了TimeSformer3个点多，说明了ViViT模型结构设计的更合理。ssv2的不同类别的背景和物体非常相似，这意味着识别细粒度的运动模式对于区分不同类别是必要的。
 
 #### Training config
+训练超参数设置详情
+
 ![配置详情](https://ae04.alicdn.com/kf/H40625b63bc6e4c4aaf6694b102e12ee5R.png)
 
 ### 六、结论
-- 提出了基于Transformer的video模型范式，设计了divide sapce-time attention。
-- 在K400,K600上取得了SOTA的效果。
-- 相比于3D CNNs，训练和推理的成本低。
-- 可以应用于超过一分钟的视频片段，具备长视频建模能力。
+- 设计了几种不同的VideoViT范式，提出了最有效的Factorised encoder结构。
+- 相比TimeSformer，思考的更全面，结构设计上更简单有效。
+- 提出了更好的迁移imagenet pretrain到video模型的方法，central frame。
+- 提出了tubelet embeeding的方法，更好的获取temporal embeeding信息。
+- 多个数据集上取得了SOTA的效果并且大幅度领先。
 
-
-### 参考
-- https://blog.csdn.net/m0_37531129/article/details/108125010
-- https://arxiv.org/pdf/1904.10509.pdf
