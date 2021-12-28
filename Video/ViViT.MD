@@ -66,11 +66,31 @@ MLP由两个线性层以及GELU构成，整个推理过程中，token的维度$d
 - **Model 2: Factorised encoder**
     ![model2](https://ae01.alicdn.com/kf/H0189928d58f443d6aacd15ef577fcac8k.png)
     <center style="font-size:14px;color:#0C00C0;">图4. 分离encoder</center> 
-    如上图4所示，这个模型结构包含了两个分离的transformer编码结构。首先是spatial encoder，只计算同一帧下面的spatial-token，经过层 
+
+    如上图4所示，这个模型结构包含了两个分离的transformer编码结构。首先是spatial encoder，只计算同一帧下面的spatial-token，经过$L_{s}$层后，可以得到每帧的表达,$h_{i}\in \mathbb{R}^{d}$。由于spatial-token是有cls-token的，所以这里空间特征表达用$z^{L_{s}}_{cls}$来表示。把每帧的特征concat起来，$\textup{H}\in \mathbb{R}^{n_{t}\times d}$，输入到$L_{t}$层的Transformer encoder，用于建模不同时序之间的特征交互。最后的cls-token用于分类，完成整个模型设计。计算的复杂度从$O((n_{h}\cdot n_{w}\cdot n_{t})^2)$降低到$O((n_{h}\cdot n_{w})^2+n_{t}^2)$
+    ![late-fusion](https://ae04.alicdn.com/kf/Hd1fe88b20d7c473fa7f2cf6d7c2209bbm.png)
+    <center style="font-size:14px;color:#0C00C0;">图5. Cnn-base video fusion</center> 
+
+    这个模型的设计思路与cnn的"late-fusion"很相似，前面用于独立提取特征，后面用于信息交互打分，如上图所示，这个思想也是很多CNN-base的video方法，例如TSN等。
+
 - **Model 3: Factorised self-attention**
     ![model3](https://ae03.alicdn.com/kf/Habaf35645bd14097b28b7002277af7b9c.png)
+    <center style="font-size:14px;color:#0C00C0;">图6. 分离self-attention</center> 
+
+    如图6所示，这个结构和TimeSformer设计的```Divided Space-Time```基本一样的，在一个transformer blocl里面，先进行spatial-attention再做temporal-attention，相比于Model1有效性更高，同时和Model2一样的计算复杂度。可以通过重排token的shape来实现计算空间attention，$\mathbb{R}^{1\times n_{t}\cdot n_{h}\cdot n_{w} \times d}$到$\mathbb{R}^{n_{t}\times n_{h}\cdot n_{w} \times d}$。计算时序attention的时候，再进行重排，$\mathbb{R}^{n_{h}\cdot n_{w} \times n_{t} \times d}$,这里的batchsize默认为1。公式可以表达为:
+    $$
+    \textup{y}^{l}_{s} = \textup{MSA}(\textup{LN}(\textup{z}_{s}^{l})) + \textup{z}_{s}^{l}\\
+    \textup{y}^{l}_{t} = \textup{MSA}(\textup{LN}(\textup{y}_{s}^{l})) + \textup{y}_{s}^{l}\\
+    \textup{z}^{l+1} = \textup{MLP}(\textup{LN}(\textup{y}_{t}^{l})) + \textup{y}_{t}^{l}\\
+    $$
+    这里有个很有意思的点，TimeSformer的结论是T-S的顺序会有提升，S-T的顺序会有下降，但是ViViT的结论是T-S和S-T指标没区别。TimeSformer在实现的时候考虑了cls-token的信息变化，ViViT直接弃用了，以免信息混淆。
+
 - **Model 4: Factorised dot-product attention**
-    
+    如图1的最右边结构所示，模型采用分离的MSA，使用不同的heads来分别计算spatial和temporal。我们定义attention公式为:
+    $$
+    \textup{Attention}(\textup{Q},\textup{K}, \textup{V}) = \textup{Softmax}\left(\frac{\textup{Q}\textup{K}^{T}}{\sqrt{d_{k}}}\right)\textup{V}
+    $$
+    其中，$\textup{Q}=\textup{X}\textup{W}_{q}$,$\textup{K}=\textup{X}\textup{W}_{k}$,$\textup{V}=\textup{X}\textup{W}_{v}, \textup{X},\textup{Q},\textup{K},\textup{V} \in \mathbb{R}^{N\times d}$，这里维度表示为$N=n_{t}\cdot n_{w}\cdot n_{h}$
 
 
 
