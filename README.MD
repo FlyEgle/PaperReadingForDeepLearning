@@ -8,21 +8,32 @@
 
 
 ### Video Classification
+#### Transformers-Base
 - [ViViT: A Video Vision Transformer](Video/ViViT.MD)
 - [TimeSFormer: Is Space-Time Attention All You Need for Video Understanding?](Video/TimeSFormer.MD)
+- [MViT:Improved Multiscale Vision Transformers for Classification and Detection](Video/MViT.MD)
+- [Mformer:Keeping Your Eye on the Ball: Trajectory Attention in Video Transformers](Video/Mformer.MD)
+- [COVER:Co-training Transformer with Videos and Images Improves Action Recognition](Video/CoVeR.MD)
+
+#### CNNs-Base
 
 
 ### Image Classification
 
-#### Transformers base
+#### Transformers-Base
 - [CMT: Convolutional Neural Networks Meet Vision Transformers](Image/Transformer/cmt.md)
 - [CROSSFORMER: A VERSATILE VISION TRANSFORMER BASED ON CROSS-SCALE ATTENTION](Image/Transformer/crossformers.md)
 - [CSWin Transformer: A General Vision Transformer Backbone with Cross-Shaped Windows](Image/Transformer/cswin.md)
+- [MViT:Improved Multiscale Vision Transformers for Classification and Detection](Video/MViT.MD)
 
-#### CNNs base
+#### CNNs-Base
 
 
 ### OCR Detection | Recognition
+#### Detection
+#### Recognition
+#### TextSpotter
+
 ### Object Detection 
 ### Object Segmentation | Instance Segmentation
 
