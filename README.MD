@@ -37,6 +37,9 @@
 ### Object Detection 
 ### Object Segmentation | Instance Segmentation
 
+### Image Animation
+- [First Order Motion Model for Image Animation](Image_Animation/First Order.MD)
+
 ### Project Experiment
 - 分类性能调优
     - [浅谈混合精度训练](Project/分类性能调优/浅谈混合精度训练imagenet.md)
