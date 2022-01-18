@@ -42,6 +42,7 @@
 
 ### Project Experiment
 - 分类性能调优
+    - [浅谈分辨率对模型影响以及训练方法](Project/分类性能调优/浅谈分辨率对模型影响以及训练方法.md)
     - [浅谈LabelSmooth两种实现和推导](Project/分类性能调优/浅谈LabelSmooth的两种实现以及推导.md)
     - [浅谈混合精度训练](Project/分类性能调优/浅谈混合精度训练imagenet.md)
     - [提升分类性能(1)](Project/分类性能调优/如何让你的分类性能提升之LARS.MD)
